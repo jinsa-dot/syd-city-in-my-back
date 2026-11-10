@@ -1,0 +1,1153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="city in my back: a Sydney that stays behind you.">
+<style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>City in My Back</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Space+Grotesk:wght@700&family=Cormorant+Garamond:ital@1&display=swap">
+<style>
+/* Layout: a dark screen. Every frame you draw shows one whole photograph, stretched to the frame; it flares, cools to black and white, and is lost unless you look back at it. Sydney's weather moves one glitching sentence letter by letter. Glitching instrument bar on top. */
+:root {
+  --bg: #0b1020;            /* replaced live by Sydney local time + weather */
+  --ink: #e9e6de;           /* replaced live by background luminance */
+  --ink-soft: rgba(233,230,222,.6);
+  --line: rgba(233,230,222,.3);
+  --red: rgba(255,51,85,.75);
+  --cyan: rgba(47,224,255,.75);
+  --panel: rgba(10,12,22,.88);
+  --font-glitch: "Special Elite", "Courier New", ui-monospace, monospace;
+  --font-serif: "Cormorant Garamond", Garamond, Georgia, serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-glitch); font-size: 19px; letter-spacing: .04em;
+  overflow: hidden; transition: background-color 2s linear;
+  -webkit-user-select: none; user-select: none;
+}
+#photos { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+#photos img { position: absolute; display: block; object-fit: fill; opacity: 0; will-change: opacity, filter; }
+canvas.layer { position: fixed; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+#fx { z-index: 3; }
+.bar, .hint, #frame span, .unlock .card p, .unlock .meta, .about h2 { filter: url(#rough); }
+#hit { position: fixed; inset: 0; z-index: 4; touch-action: none; cursor: crosshair; }
+#frame { position: fixed; z-index: 4; pointer-events: none; border: 1px solid var(--ink); box-shadow: -1px 0 0 var(--red), 1px 0 0 var(--cyan); }
+#frame span { position: absolute; left: 0; top: 100%; margin-top: 6px; white-space: nowrap; font-size: 17px; text-transform: uppercase; text-shadow: -1px 0 var(--red), 1px 0 var(--cyan); }
+
+/* glitch text: two offset colour copies, sliced and shaken now and then */
+.g { position: relative; display: inline-block; text-shadow: -1px 0 rgba(255,51,85,.35), 1px 0 rgba(47,224,255,.35); white-space: nowrap; }
+.g::before, .g::after { content: attr(data-t); position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; }
+.g::before { color: var(--red); }
+.g::after { color: var(--cyan); }
+.g.hit::before { opacity: .9; transform: translateX(-3px); clip-path: inset(10% 0 55% 0); }
+.g.hit::after { opacity: .9; transform: translateX(3px); clip-path: inset(55% 0 12% 0); }
+.g.hit { transform: translateX(1px) skewX(-8deg); }
+
+.bar {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 5;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px)); padding-bottom: 8px;
+  padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px));
+  pointer-events: none; text-transform: lowercase; font-size: 17px; line-height: 1;
+}
+.bar > * { pointer-events: auto; min-width: 0; }
+.bar .right { justify-self: end; display: flex; gap: 16px; align-items: center; }
+.bar .center { justify-self: center; }
+.btn { font: inherit; color: inherit; background: none; border: 0; padding: 4px 0; cursor: pointer; letter-spacing: inherit; text-transform: inherit; }
+.btn:focus-visible, input:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
+.soft { color: var(--ink-soft); }
+.help { width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 50%; padding: 0; line-height: 1; }
+
+.hint {
+  position: fixed; left: 0; right: 0; z-index: 5; text-align: center; pointer-events: none;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px)); padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px));
+  font-size: 14px; letter-spacing: .04em; text-transform: lowercase; color: var(--ink-soft);
+  transition: opacity .8s;
+}
+.hint .g { white-space: normal; }
+
+.unlock { position: fixed; inset: 0; z-index: 7; display: grid; place-items: center; pointer-events: none;
+  padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+.unlock .card { display: grid; gap: 10px; justify-items: center; pointer-events: auto; text-align: center; background: rgba(4,5,9,.78); padding: 18px 22px; color: #f2efe6; }
+.unlock p { margin: 0; font-size: clamp(26px, 3.6vw, 40px); line-height: 1; text-transform: uppercase; }
+.unlock .meta { font-size: 16px; letter-spacing: .1em; text-transform: uppercase; color: rgba(242,239,230,.75); }
+.unlock .btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.unlock .btn { text-transform: uppercase; font-size: 17px; border: 1px solid rgba(242,239,230,.4); padding: 4px 12px; }
+
+.lightbox { position: fixed; inset: 0; z-index: 8; background: rgba(4,5,9,.95); display: grid; grid-template-rows: 1fr auto; place-items: center; color: #e9e6de;
+  padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px));
+  padding-block: calc(56px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)); }
+.lightbox img { max-width: 100%; max-height: calc(100vh - 150px); object-fit: contain; display: block; }
+.lightbox .lbbar { display: flex; gap: 18px; align-items: center; padding-top: 12px; text-transform: uppercase; font-size: 18px; }
+.lightbox .x { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(18px, env(safe-area-inset-right, 0px)); text-transform: uppercase; font-size: 18px; }
+
+.about { position: fixed; inset: 0; z-index: 9; overflow-y: auto; background: rgba(6,8,14,.96); color: #e9e6de; -webkit-user-select: text; user-select: text;
+  padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px));
+  padding-block: calc(64px + env(safe-area-inset-top, 0px)) calc(64px + env(safe-area-inset-bottom, 0px)); }
+.about .inner { max-width: 620px; margin: 0 auto; display: grid; gap: 30px; }
+.about h2 { font-weight: 400; font-size: clamp(54px, 10vw, 92px); margin: 0; line-height: .9; text-transform: uppercase; }
+.about section { display: grid; gap: 10px; }
+.about h3 { margin: 0; font-weight: 400; font-size: 17px; letter-spacing: .12em; text-transform: uppercase; color: rgba(233,230,222,.55); }
+.about p, .about li { margin: 0; font-family: var(--font-serif); font-style: italic; font-size: 19px; line-height: 1.5; letter-spacing: 0; }
+.about ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+.about dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 17px; line-height: 1.25; }
+.about dt { color: rgba(233,230,222,.55); text-transform: uppercase; }
+.about dd { margin: 0; min-width: 0; }
+.about .close { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(18px, env(safe-area-inset-right, 0px)); text-transform: uppercase; font-size: 18px; }
+.about a { color: #e9e6de; }
+
+@media (max-width: 640px) {
+  .bar { grid-template-columns: 1fr auto; row-gap: 6px; font-size: 18px; }
+  .bar .center { grid-column: 1; grid-row: 2; justify-self: start; }
+  .bar .right { grid-column: 2; grid-row: 1 / span 2; flex-direction: column; align-items: flex-end; gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { body, #photos img { transition: none; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feMorphology in="d" operator="dilate" radius="0.5" result="m"/>
+    <feGaussianBlur in="m" stdDeviation="0.45" result="b"/>
+    <feComponentTransfer in="b"><feFuncA type="linear" slope="2.6" intercept="-0.45"/></feComponentTransfer>
+  </filter>
+</svg>
+<div id="photos" aria-hidden="true"></div>
+<canvas class="layer" id="fx" aria-hidden="true"></canvas>
+<div id="hit" role="application" aria-label="Draw a frame to reveal a photograph of Sydney"></div>
+<div id="frame" hidden><span id="frameLab"></span></div>
+
+<header class="bar">
+  <div class="left"><span class="g" data-t="Sydney, Australia">Sydney, Australia</span></div>
+  <div class="center"><span class="g soft" id="tz" data-t="AEDT">AEDT</span> <span class="g" id="clock" data-t="--:--:--">--:--:--</span></div>
+  <div class="right">
+    <button class="btn" id="tempBtn" title="Switch °C / °F"><span class="g" id="tempTxt" data-t="--°C">--°C</span></button>
+    <button class="btn" id="wxBtn" title="Change the weather"><span class="g" id="wxTxt" data-t="--">--</span></button>
+    <button class="btn" id="soundBtn" title="Sound on or off"><span class="g" id="soundTxt" data-t="Sound on">Sound on</span></button>
+    <button class="btn help" id="helpBtn" aria-label="About this piece">?</button>
+  </div>
+</header>
+
+
+<div class="unlock" id="unlock" hidden>
+  <div class="card">
+    <p class="g" data-t="Unlocked: the whole city, at your back">Unlocked: the whole city, at your back</p>
+    <span class="meta"><span id="seenCount">0</span> of <span id="photoTotal">44</span> photographs seen</span>
+    <div class="btns">
+      <button class="btn" id="openAll">See every photograph</button>
+      <button class="btn" id="againBtn">Look again</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Photograph">
+  <button class="btn x" id="lbClose">Close</button>
+  <img id="lbImg" alt="Photograph of Sydney by jb">
+  <div class="lbbar">
+    <button class="btn" id="lbPrev">← Prev</button>
+    <span id="lbIdx">1 / 44</span>
+    <button class="btn" id="lbNext">Next →</button>
+  </div>
+</div>
+
+<div class="about" id="about" hidden role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+  <button class="btn close" id="closeAbout">Close</button>
+  <div class="inner">
+    <h2 id="aboutTitle" class="g" data-t="City in My Back">City in My Back</h2>
+    <section>
+      <h3>About</h3>
+      <p>The harbour. The ocean pools. The train from Burwood or Ashfield to Redfern. The jacarandas that bloom every November. I don't know how many more chances I will have to watch those purple flowers open and fall. So I take my camera and try to keep something of it, but I don't know how I will remember any of it years from now: clearly, or only as a flash of white light, or a faded black-and-white print.</p>
+      <p>I choose to carry these memories on my back &mdash; or, as I would rather say, <i>in</i> my back &mdash; and let them come with me as I keep moving forward.</p>
+      <p>When you look back, you only ever see one picture at a time, squeezed or stretched, burning white, finding its colour for a moment, then slowly fading to black and white. Stop looking back, and it is gone.</p>
+      <p>&mdash; for syd ct, and my best time</p>
+    </section>
+    <section>
+      <h3>How to look</h3>
+      <ul>
+        <li>Move the cursor and you leave footprints. You keep walking; they stay behind you and fade. Click to tear the picture.</li>
+        <li>Draw a frame. A whole photograph appears inside it, stretched or squeezed to fit.</li>
+        <li>Every frame shows a different photograph, until you have seen all of them.</li>
+        <li>Each photograph flares up white, slowly surfaces, keeps its colour for a moment, then turns black and white. It stays for about fifteen seconds, then slowly disappears. Keep your cursor on it and it stays. Once it has gone, it never comes back.</li>
+        <li>If you leave the page while a photograph is still there, it waits for you, bleached and older. Look back at it quickly or it will go.</li>
+        <li>Draw a frame across almost the whole screen to turn around.</li>
+        <li>Small sentences drift across the screen, moved by today's Sydney weather. Hover over one to stop it and read it.</li>
+        <li>Sound: every click is a footstep walking away, every photograph a shutter.</li>
+        <li>Click the temperature to switch between °C and °F.</li>
+      </ul>
+    </section>
+    <section>
+      <h3>Weather</h3>
+      <p>Weather is more than a number: it changes what you do today. So each kind of Sydney weather, light, medium or heavy, gets its own small suggestion, and the letters of that sentence move the way the weather moves. Reading it, you feel the weather.</p>
+      <dl>
+        <dt>Live</dt><dd id="aboutLive">Live Sydney weather from Open-Meteo, refreshed every 30 minutes.</dd>
+        <dt>Clear</dt><dd>Sentences rise slowly while a band of sunlight sweeps across.</dd>
+        <dt>Cloudy</dt><dd>Sentences drift together in slow clouds that cast shadows over the city.</dd>
+        <dt>Rain</dt><dd>Each sentence falls like a raindrop and splashes into letters.</dd>
+        <dt>Storm</dt><dd>Letters fall hard and break apart.</dd>
+        <dt>Wind</dt><dd>Sentences are blown across the screen, scattered by each gust.</dd>
+        <dt>Heat</dt><dd>Letters shimmer.</dd>
+        <dt>Fog</dt><dd>Letters blur in and out.</dd>
+        <dt>Jacaranda</dt><dd>Letters fall like purple flowers in October and November.</dd>
+      </dl>
+    </section>
+    <section>
+      <h3>Credits</h3>
+      <dl>
+        <dt>Photographs</dt><dd>B_lla, Sydney, 2025–2026</dd>
+        <dt>Concept</dt><dd>B_lla</dd>
+        <dt>Inspired by</dt><dd>the song <i>City on My Back</i></dd>
+        <dt>Weather data</dt><dd>Open-Meteo, live for Sydney</dd>
+        <dt>Type</dt><dd>Special Elite, roughened like a photocopy; Cormorant Garamond</dd>
+      </dl>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---------- today's Sydney weather (snapshot; replaced by the daily update when available) ----------
+  let LIVE = { date: "2026-11-11", code: "cloudy", label: "Partly cloudy", tempNow: 18, tMax: 26, tMin: 17, windKmh: 21, windDir: "NE", rainChance: 40, updated: "2026-11-11T23:25:00+11:00", source: "meteoblue" };
+
+  const WEATHERS = ["Live", "Clear", "Cloudy", "Rain", "Storm", "Wind", "Heat", "Fog", "Jacaranda"];
+  const INTENSITIES = ["Auto", "Light", "Medium", "Heavy"];
+  const S = { choice: "Live", intensity: "Auto", liveTime: true, hour: 12, tempC: null, unitF: false, done: false };
+  const cap = s => { s = String(s || "clear").toLowerCase(); return s.charAt(0).toUpperCase() + s.slice(1); };
+  const weather = () => S.choice === "Live" ? cap(LIVE.code) : S.choice;
+  const temp = () => S.tempC ?? LIVE.tempNow;
+  const K = { Light: .55, Medium: 1, Heavy: 1.7 };
+
+  // ---------- one sentence per moment, in the weather's voice ----------
+  // One small thing to do in Sydney today, chosen by the weather and how strong it is.
+  const LINES = {
+    Clear: {
+      Light: ["take the long way round the harbour", "sit on the opera house steps a while", "walk to the quay and back"],
+      Medium: ["take the ferry to manly and back", "swim at an ocean pool before lunch", "eat your lunch under a fig tree"],
+      Heavy: ["put sunscreen on before you leave", "carry water on the coast walk", "walk on the shady side of george street"],
+    },
+    Cloudy: {
+      Light: ["walk from bondi to coogee while it's mild", "visit the botanic garden today", "take photos, the light is soft"],
+      Medium: ["take the ferry anyway", "spend the afternoon in a gallery", "bring a jacket just in case"],
+      Heavy: ["find a cafe seat by the window", "ride the train to the end of the line", "call home today"],
+    },
+    Rain: {
+      Light: ["keep a small umbrella in your bag", "wait under an awning and watch the street", "walk carefully on the wet sandstone"],
+      Medium: ["take the train instead of the ferry", "count the drops on the train window", "stay in bed ten minutes longer"],
+      Heavy: ["keep off the roads if you can", "keep your shoes dry, take the bus", "watch the downpour from indoors"],
+    },
+    Storm: {
+      Light: ["bring the washing in before it hits", "check the sky before you head out"],
+      Medium: ["count the seconds after the flash", "keep away from the water this afternoon"],
+      Heavy: ["wait it out indoors, it passes fast", "charge your phone in case the power goes"],
+    },
+    Wind: {
+      Light: ["watch the sailboats lean on the harbour", "let the breeze dry your hair"],
+      Medium: ["hold on to your hat at the quay", "tie your hair back before the ferry"],
+      Heavy: ["bring a layer, the southerly is coming", "skip the cliff walk today", "check if the ferries are still running"],
+    },
+    Heat: {
+      Light: ["go to the beach before noon", "eat something cold on the sand"],
+      Medium: ["wait out the afternoon under a fig tree", "swim until you cool down"],
+      Heavy: ["stay indoors until the cool change", "drink water every hour", "check on someone older than you"],
+    },
+    Fog: {
+      Light: ["walk slowly, the bridge is hidden", "listen for the ferry horn"],
+      Medium: ["wait for the harbour to come back", "turn your lights on if you drive"],
+      Heavy: ["leave a little earlier this morning", "follow the sound of the water"],
+    },
+    Jacaranda: {
+      Light: ["look up on your way to class", "walk under the purple trees"],
+      Medium: ["take a photo before the flowers fall", "let the petals land on your shoulders"],
+      Heavy: ["walk home the purple way", "sit under a jacaranda until it's dark"],
+    },
+    Night: ["take the last ferry home", "look back at the city lights once", "walk home the bright way"],
+  };
+  // how strong today's live weather is, read from the forecast numbers
+  function liveIntensity() {
+    const w = weather(), d = LIVE;
+    const lvl = (v, a, b) => v >= b ? "Heavy" : v >= a ? "Medium" : "Light";
+    if (w === "Rain" || w === "Storm") return lvl(d.rainChance, 50, 80);
+    if (w === "Wind") return lvl(d.windKmh, 30, 45);
+    if (w === "Heat") return lvl(d.tMax, 33, 37);
+    if (w === "Clear") return lvl(d.tMax, 24, 30);
+    if (w === "Cloudy") return lvl(d.rainChance, 25, 45);
+    return "Medium";
+  }
+  const intensity = () => S.intensity === "Auto" ? liveIntensity() : S.intensity;
+  const extra = [];
+
+  // ---------- Sydney time + colour ----------
+  const fmt = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23", timeZoneName: "short" });
+  function sydneyNow() {
+    const p = Object.fromEntries(fmt.formatToParts(new Date()).map(x => [x.type, x.value]));
+    const h = +p.hour, m = +p.minute, s = +p.second;
+    return { h, m, s, frac: h + m / 60 + s / 3600, tz: (p.timeZoneName || "AEDT").replace(/^GMT\+11$/, "AEDT").replace(/^GMT\+10$/, "AEST") };
+  }
+  const hourNow = () => S.liveTime ? sydneyNow().frac : S.hour;
+  const isNight = () => { const h = hourNow(); return h < 5.6 || h >= 19.8; };
+  const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  const rgb = c => `rgb(${c.map(v => Math.round(v)).join(",")})`;
+  const lum = c => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+  const SKY = [[0,"#07090f"],[4.6,"#0b1120"],[5.7,"#3a3049"],[6.6,"#a8918d"],[8,"#d5d6d2"],[12,"#e4e4e1"],[16,"#dddcd6"],[17.8,"#d39a76"],[19,"#6e3f58"],[20.2,"#171a30"],[24,"#07090f"]].map(([h, c]) => [h, hex(c)]);
+  function skyAt(h) { for (let i = 0; i < SKY.length - 1; i++) { const [h0, c0] = SKY[i], [h1, c1] = SKY[i + 1]; if (h >= h0 && h <= h1) return mix(c0, c1, (h - h0) / (h1 - h0)); } return SKY[0][1]; }
+  let BG = [11, 16, 32], INK = [233, 230, 222];
+  function applyTheme() {
+    let c = skyAt(hourNow()); const t = temp(), w = weather();
+    if (t > 24) c = mix(c, hex("#e3a072"), Math.min(1, (t - 24) / 20) * .3);
+    if (t < 15) c = mix(c, hex("#7f93ad"), Math.min(1, (15 - t) / 9) * .3);
+    const tint = { Storm: ["#23262f", .4], Rain: ["#7d868e", .22], Cloudy: ["#a3a5a5", .18], Fog: ["#c3c5c4", .35], Heat: ["#e59a62", .22], Jacaranda: ["#8f7bb8", .14] }[w];
+    if (tint) c = mix(c, hex(tint[0]), tint[1] * (lum(c) < .3 ? .5 : 1));
+    BG = [0, 0, 0]; INK = [244, 242, 236];          // black ground, white ink
+    const r = document.documentElement.style;
+    r.setProperty("--bg", rgb(BG)); r.setProperty("--ink", rgb(INK));
+    r.setProperty("--ink-soft", `rgba(${INK.join(",")},.62)`); r.setProperty("--line", `rgba(${INK.join(",")},.32)`);
+  }
+
+  // ---------- glitching DOM text ----------
+  const SCR = "#%&*+=<>/\\|_-0123456789ABCDEFX";
+  function setG(el, text) { el.dataset.t = text; el.dataset.real = text; el.textContent = text; }
+  function glitchTick() {
+    const els = document.querySelectorAll(".bar .g, .hint .g, .unlock .g");
+    const amt = { Storm: 3, Heat: 2.2, Wind: 1.8, Rain: 1.5 }[weather()] || 1;
+    els.forEach(el => {
+      if (Math.random() < .045 * amt) {
+        el.classList.add("hit");
+        const real = el.dataset.real ?? el.textContent; el.dataset.real = real;
+        if (Math.random() < .6) {
+          const arr = [...real]; const n = 1 + Math.floor(Math.random() * 3);
+          for (let i = 0; i < n; i++) { const j = Math.floor(Math.random() * arr.length); if (arr[j] !== " ") arr[j] = SCR[Math.floor(Math.random() * SCR.length)]; }
+          el.textContent = arr.join("");
+        }
+        setTimeout(() => { el.classList.remove("hit"); el.textContent = el.dataset.real; }, 60 + Math.random() * 120);
+      }
+    });
+  }
+  if (!reduced) setInterval(glitchTick, 110);
+
+  // ---------- photographs: each frame gets one whole photo ----------
+  const IDS = ["p00","p01","p02","p03","p04","p05","p06","p07","p08","p09","p10","p11","p12","p13","p14","p15","p16","p17","p18","p19","p22","p23","p24","p25","p26","p27","p28","p29","p30","p31","p32","p33","p34","p35","p36","p37","p39","p40","p41","p42","p43","p44","p45","p46"];
+  // what this viewer has already looked back at survives a reload (kept only in their own browser)
+  const KEY = "city-in-my-back:v1";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch (e) { return null; } };
+  const saved = load();
+  let ORDER = saved && Array.isArray(saved.order) && saved.order.length === IDS.length && saved.order.every(id => IDS.includes(id)) ? saved.order : null;
+  if (!ORDER) { ORDER = IDS.slice(); for (let i = ORDER.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ORDER[i], ORDER[j]] = [ORDER[j], ORDER[i]]; } }
+  $("photoTotal").textContent = ORDER.length;
+  let nextPhoto = saved?.next | 0; const seen = new Set((saved?.seen || []).filter(id => IDS.includes(id)));
+  const entries = [];   // {el, id, fx, fy, fw, fh, born, clarity, lastSeen}
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify({ order: ORDER, next: nextPhoto, seen: [...seen],
+      frames: entries.slice(-40).map(e => ({ id: e.id, fx: e.fx, fy: e.fy, fw: e.fw, fh: e.fh, born: e.born })) })); } catch (e) { /* storage blocked: nothing is kept */ }
+  }
+  const preload = i => { const im = new Image(); im.src = `${ORDER[i % ORDER.length]}.jpg`; };
+  preload(nextPhoto); preload(nextPhoto + 1);
+  function addEntry(id, fx, fy, fw, fh, born, fresh) {
+    const im = document.createElement("img");
+    im.alt = ""; im.src = `${id}.jpg`; im.decoding = "async";
+    $("photos").appendChild(im);
+    const e = { el: im, id, fx, fy, fw, fh, born, vis: 1, fresh };
+    positionEntry(e); entries.push(e);
+    while (entries.length > 60) entries.shift().el.remove();
+    return e;
+  }
+  function positionEntry(e) { Object.assign(e.el.style, { left: e.fx * W + "px", top: e.fy * H + "px", width: e.fw * W + "px", height: e.fh * H + "px" }); }
+  function placePhoto(r) {
+    const id = ORDER[nextPhoto % ORDER.length]; nextPhoto++; seen.add(id);
+    preload(nextPhoto); preload(nextPhoto + 1);
+    const e = addEntry(id, r.x / W, r.y / H, r.w / W, r.h / H, Date.now(), true);
+    $("seenCount").textContent = seen.size; save(); shutter();
+    return e;
+  }
+  // how old a memory is: older frames come back faded and warmer, like old prints
+  function ageFade(born) { const days = (Date.now() - born) / 864e5; return Math.min(.85, days <= 0 ? 0 : .12 + days / 10); }
+  let mouse = { x: -1e4, y: -1e4, on: false };
+  // Each photograph: appears burnt out with light, cools into black and white,
+  // then disappears unless you keep looking back at it. Once gone, it is gone.
+  const BLOWN_MS = 600, EXPOSE_MS = 3600, COLOR_HOLD_END = 5200, MONO_MS = 12200, HOLD_MS = 15000, VANISH_MS = 8000, RETURN_MS = 700;
+  function updateEntries(now) {
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const e = entries[i], x = e.fx * W, y = e.fy * H, w = e.fw * W, h = e.fh * H;
+      const dt = Math.min(100, now - (e.t || now)); e.t = now;
+      if (e.start == null) e.start = now;
+      const age = now - e.start + (e.fresh ? 0 : MONO_MS);          // restored prints are already black and white
+      const dx = Math.max(x - mouse.x, 0, mouse.x - (x + w)), dy = Math.max(y - mouse.y, 0, mouse.y - (y + h));
+      const near = (mouse.on && Math.hypot(dx, dy) < 30) || (S.done && i === entries.length - 1);
+      if (near) e.lastNear = now;
+      if (age > MONO_MS + HOLD_MS && now - (e.lastNear || 0) > 1500) {   // black and white for 15 s, then it starts to go
+        e.vis = Math.max(0, e.vis - (reduced ? 1 : dt / VANISH_MS));
+      } else if (age > MONO_MS) {
+        if (near) e.vis = Math.min(1, e.vis + dt / RETURN_MS);   // during the hold, looking back restores it
+      }
+      if (e.vis <= 0) { e.el.remove(); entries.splice(i, 1); save(); continue; }
+      const k = reduced ? 1 : Math.min(1, Math.max(0, age - BLOWN_MS) / EXPOSE_MS);   // pure white briefly, then the picture slowly surfaces out of the white over ~3.6 s
+      const ex = 1 - k * k * (3 - 2 * k);                          // white lingers, the picture surfaces slowly
+      const mono = reduced ? 1 : Math.min(1, Math.max(0, (age - COLOR_HOLD_END) / (MONO_MS - COLOR_HOLD_END)));   // stays in colour ~1.5 s, then fades to black and white over ~7 s
+      const old = ageFade(e.born);
+      const fadeIn = reduced ? 1 : Math.min(1, age / 120);
+      e.el.style.opacity = (fadeIn * e.vis * (1 - old * .3)).toFixed(3);
+      e.el.style.filter = `brightness(${(1 + ex * 5).toFixed(2)}) contrast(${(1 - ex * .6 + mono * .18 - old * .15).toFixed(2)}) grayscale(${mono.toFixed(2)})`;
+    }
+  }
+
+  // ---------- footprints: you keep walking, and they stay behind you ----------
+  const FOOT = [".XX.X.X", ".XX....", ".......", ".XXXXX.", "XXXXXXX", "XXXXXXX", ".XXXXX.", "..XXXX.", "..XXX..", ".XXXX..", ".XXXXX.", ".XXXX..", "..XX..."];
+  const trail = [], bursts = [];
+  let lastFoot = null, side = 1;
+  const STEP = 72, PRINT_LIFE = 1700;
+  function pushTrail(x, y, now) {
+    if (!lastFoot) { lastFoot = { x, y }; return; }
+    const dx = x - lastFoot.x, dy = y - lastFoot.y, d = Math.hypot(dx, dy);
+    if (d < STEP) return;
+    const ang = Math.atan2(dy, dx);
+    side = -side;
+    const px = x - Math.sin(ang) * 10 * side, py = y + Math.cos(ang) * 10 * side;   // left, right, left...
+    trail.push({ x: px, y: py, ang, side, t: now, seed: Math.random() * 1e4 });
+    if (trail.length > 80) trail.shift();
+    lastFoot = { x, y };
+  }
+  // a click: both feet press down where you stand, then three steps walk away from the middle of the screen
+  function walkAway(x, y) {
+    const now = performance.now();
+    let ang = Math.atan2(y - H / 2, x - W / 2) + (Math.random() - .5) * 1.2;
+    if (Math.hypot(x - W / 2, y - H / 2) < 40) ang = Math.random() * Math.PI * 2;
+    bursts.push({ x, y, t: now }); pokes.push({ x, y, t: now });
+    footstep(0, 1, 0);
+    [-1, 1].forEach(sd => trail.push({ x: x - Math.sin(ang) * 9 * sd, y: y + Math.cos(ang) * 9 * sd, ang, side: sd, t: now, seed: Math.random() * 1e4, big: true }));
+    for (let i = 1; i <= 3; i++) setTimeout(() => {
+      const t = performance.now(), sd = i % 2 ? 1 : -1, d = i * STEP * .8;
+      const px = x + Math.cos(ang) * d - Math.sin(ang) * 9 * sd, py = y + Math.sin(ang) * d + Math.cos(ang) * 9 * sd;
+      trail.push({ x: px, y: py, ang, side: sd, t, seed: Math.random() * 1e4 });
+      if (ttl.a > .05) { bursts.push({ x: px, y: py, t, small: true }); pokes.push({ x: px, y: py, t }); }   // each step shakes the title it lands on
+    }, reduced ? 0 : i * 190);
+    for (let i = 1; i <= 3; i++) footstep(i * .19, Math.pow(.62, i), i);   // walking away: quieter, further
+    lastFoot = null;
+  }
+  function drawFoot(f, a, cell) {
+    const rows = FOOT.length, cols = FOOT[0].length;
+    let r = f.seed;
+    const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+    cx.save(); cx.translate(f.x, f.y); cx.rotate(f.ang + Math.PI / 2);
+    for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+      const jj = f.side > 0 ? j : cols - 1 - j;
+      if (FOOT[i][jj] !== "X") continue;
+      if (a < .45 && rnd() > a * 2.2) continue;           // the last moments: pixels drop out
+      const x = (j - cols / 2) * cell, y = (i - rows / 2) * cell;
+      cx.fillRect(x, y, cell - .4, cell - .4);
+    }
+    cx.restore();
+  }
+  function drawTrail(now, gAmt) {
+    const light = lum(BG) > .5, cell = 2.6;
+    while (trail.length && now - trail[0].t > PRINT_LIFE) trail.shift();
+    for (const f of trail) {
+      const age = (now - f.t) / PRINT_LIFE;
+      const a = Math.pow(1 - age, 1.6);                    // soft, ripple-like fade
+      const press = Math.min(1, (now - f.t) / 140);        // the foot lands
+      const spread = 1 + age * .35;                        // and slowly spreads into the ground
+      // a faint ring spreading from where the foot landed
+      cx.globalAlpha = a * .35; cx.strokeStyle = rgb(INK); cx.lineWidth = 1;
+      cx.beginPath(); cx.arc(f.x, f.y, 6 + age * (f.big ? 90 : 34), 0, 7); cx.stroke();
+      if (f.big) { cx.globalAlpha = a * .2; cx.beginPath(); cx.arc(f.x, f.y, 4 + age * 55, 0, 7); cx.stroke(); }
+      const off = 1 + gAmt * .7 * (1 - age);
+      cx.save(); cx.translate(f.x, f.y); cx.scale(spread * (1.3 - .3 * press), spread * (1.3 - .3 * press)); cx.translate(-f.x, -f.y);
+      cx.save(); cx.globalCompositeOperation = light ? "multiply" : "screen";
+      cx.globalAlpha = a * press * .6; cx.fillStyle = "#ff3355"; drawFoot({ ...f, x: f.x - off }, a, cell);
+      cx.fillStyle = "#2fe0ff"; drawFoot({ ...f, x: f.x + off }, a, cell);
+      cx.restore();
+      cx.globalAlpha = a * press * .85; cx.fillStyle = rgb(INK); drawFoot(f, a, cell);
+      cx.restore(); cx.globalAlpha = 1;
+    }
+    // a click tears the screen around the point for a moment
+    for (let i = bursts.length - 1; i >= 0; i--) {
+      const b = bursts[i], a = 1 - (now - b.t) / 450;
+      if (a <= 0) { bursts.splice(i, 1); continue; }
+      for (let j = 0; j < 6; j++) {
+        const y = b.y + (Math.random() - .5) * 120 * (1.2 - a), hgt = 2 + Math.random() * 10, dx = (Math.random() - .5) * 40 * a;
+        cx.drawImage(fx, (b.x - 160) * DPR, y * DPR, 320 * DPR, hgt * DPR, b.x - 160 + dx, y, 320, hgt);
+      }
+      cx.globalAlpha = a * .6; cx.fillStyle = Math.random() < .5 ? "#ff3355" : "#2fe0ff";
+      cx.fillRect(b.x - 60 * a, b.y - 1, 120 * a, 2); cx.globalAlpha = 1;
+    }
+  }
+
+  // ---------- rear-view mirror: the cursor shows what is behind you ----------
+  // It reflects the opposite side of the screen (through its centre), flipped like a real mirror,
+  // and slightly zoomed out like a convex car mirror.
+  const finePointer = matchMedia("(hover: hover) and (pointer: fine)").matches;
+  const mir = { x: -1, y: -1 };
+  let snap = null;
+  function mirrorPath(x, y, w, h) {
+    const r = h / 2; cx.beginPath();
+    cx.moveTo(x + r, y); cx.lineTo(x + w - r, y); cx.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
+    cx.lineTo(x + r, y + h); cx.arc(x + r, y + r, r, Math.PI / 2, Math.PI * 1.5); cx.closePath();
+  }
+  function drawMirror(now, gAmt) {
+    if (!finePointer || !mouse.on || drag) { mir.x = -1; return; }
+    const MW = Math.min(230, W * .42), MH = MW * .36, Z = 1.8;
+    const tx = Math.min(W - MW / 2 - 8, Math.max(MW / 2 + 8, mouse.x)), ty = Math.max(MH / 2 + 50, mouse.y - MH / 2 - 26);
+    if (mir.x < 0 || reduced) { mir.x = tx; mir.y = ty; } else { mir.x += (tx - mir.x) * .2; mir.y += (ty - mir.y) * .2; }
+    const x0 = mir.x - MW / 2, y0 = mir.y - MH / 2;
+    const sx = W - mouse.x, sy = H - mouse.y;            // the point behind you
+    if (!snap || snap.width !== fx.width || snap.height !== fx.height) { snap = document.createElement("canvas"); snap.width = fx.width; snap.height = fx.height; }
+    const sg = snap.getContext("2d"); sg.clearRect(0, 0, snap.width, snap.height); sg.drawImage(fx, 0, 0);
+    cx.save(); mirrorPath(x0, y0, MW, MH); cx.clip();
+    cx.translate(mir.x, mir.y); cx.scale(-1 / Z, 1 / Z); cx.translate(-sx, -sy);
+    cx.fillStyle = rgb(BG); cx.fillRect(sx - MW * Z, sy - MH * Z, MW * Z * 2, MH * Z * 2);
+    for (const e of entries) {
+      const im = e.el; if (!(im.complete && im.naturalWidth)) continue;
+      cx.globalAlpha = +im.style.opacity || 0; cx.filter = im.style.filter || "none";
+      cx.drawImage(im, e.fx * W, e.fy * H, e.fw * W, e.fh * H);
+    }
+    cx.filter = "none"; cx.globalAlpha = 1;
+    cx.drawImage(snap, 0, 0, W, H);
+    cx.restore();
+    // glass and frame
+    const g = cx.createLinearGradient(x0, y0, x0 + MW * .6, y0 + MH);
+    g.addColorStop(0, "rgba(255,255,255,.22)"); g.addColorStop(.35, "rgba(255,255,255,.03)"); g.addColorStop(1, "rgba(0,0,0,.18)");
+    mirrorPath(x0, y0, MW, MH); cx.fillStyle = g; cx.fill();
+    const off = 1.5 + gAmt * .8 + (Math.random() < .03 * gAmt ? Math.random() * 5 : 0);
+    cx.lineWidth = 2;
+    cx.globalAlpha = .75; cx.strokeStyle = "#ff3355"; mirrorPath(x0 - off, y0, MW, MH); cx.stroke();
+    cx.strokeStyle = "#2fe0ff"; mirrorPath(x0 + off, y0, MW, MH); cx.stroke();
+    cx.globalAlpha = 1; cx.lineWidth = 3; cx.strokeStyle = rgb(INK); mirrorPath(x0, y0, MW, MH); cx.stroke();
+    // the little stem that holds it, down to the cursor
+    cx.lineWidth = 2; cx.beginPath(); cx.moveTo(mir.x, y0 + MH); cx.lineTo(mouse.x, mouse.y - 4); cx.stroke();
+    cx.font = `15px "Special Elite", "Courier New", monospace`; cx.fillStyle = rgb(INK); cx.globalAlpha = .7;
+    cx.fillText("BEHIND YOU", x0 + MH / 2, y0 - 6); cx.globalAlpha = 1;
+  }
+
+  // ---------- sound: footsteps, a shutter, and the city muffled behind you ----------
+  const SND = { ctx: null, master: null, behind: null, on: true };
+  try { SND.on = localStorage.getItem("city-in-my-back:sound") !== "off"; } catch (e) {}
+  function noiseBuffer(ac, sec, brown) {
+    const b = ac.createBuffer(1, ac.sampleRate * sec, ac.sampleRate), d = b.getChannelData(0); let last = 0;
+    for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; if (brown) { last = (last + .02 * w) / 1.02; d[i] = last * 3.5; } else d[i] = w; }
+    return b;
+  }
+  function startAudio() {
+    if (SND.ctx) { if (SND.ctx.state === "suspended") SND.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    const ac = new AC(); SND.ctx = ac;
+    SND.master = ac.createGain(); SND.master.gain.value = SND.on ? .9 : 0; SND.master.connect(ac.destination);
+    SND.white = noiseBuffer(ac, 1, false);
+    SND.behind = null;   // no background sound: only footsteps and the shutter
+  }
+  function setSound(on) {
+    SND.on = on; try { localStorage.setItem("city-in-my-back:sound", on ? "on" : "off"); } catch (e) {}
+    if (on) startAudio();
+    if (SND.master) SND.master.gain.setTargetAtTime(on ? .9 : 0, SND.ctx.currentTime, .1);
+    setG($("soundTxt"), on ? "Sound on" : "Sound off");
+  }
+  function burst(t, dur, type, freq, q, gain, dest) {
+    const ac = SND.ctx, src = ac.createBufferSource(); src.buffer = SND.white;
+    const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = ac.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(dest || SND.master); src.start(t); src.stop(t + dur + .02);
+  }
+  function footstep(delay, vol, dist) {
+    if (!SND.ctx || !SND.on) return;
+    const ac = SND.ctx, t = ac.currentTime + delay;
+    const out = ac.createBiquadFilter(); out.type = "lowpass"; out.frequency.value = 4000 - dist * 900; out.connect(SND.master);
+    // heel: a soft thud; sole: a short scuff on pavement
+    const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(48, t + .09);
+    g.gain.setValueAtTime(.55 * vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + .12); o.connect(g); g.connect(out); o.start(t); o.stop(t + .14);
+    burst(t, .07, "bandpass", 900 + Math.random() * 300, 1.2, .35 * vol, out);
+    burst(t + .05, .09, "bandpass", 2200, .9, .12 * vol, out);
+    const wet = weather() === "Rain" || weather() === "Storm";
+    if (wet) burst(t + .02, .18, "highpass", 2500, .7, .22 * vol, out);   // stepping in water
+  }
+  function shutter() {
+    if (!SND.ctx || !SND.on) return;
+    const t = SND.ctx.currentTime;
+    burst(t, .025, "highpass", 3000, .7, .7);
+    burst(t + .075, .03, "highpass", 2400, .7, .55);
+    burst(t, .14, "bandpass", 180, 1.5, .4);
+    burst(t + .02, .35, "highpass", 6000, .5, .06);              // a little static as the picture burns in
+  }
+  function tapeStop() {
+    if (!SND.ctx || !SND.on) return;
+    const ac = SND.ctx, t = ac.currentTime, o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
+    o.type = "triangle"; o.frequency.setValueAtTime(330, t); o.frequency.exponentialRampToValueAtTime(40, t + .9);
+    f.type = "lowpass"; f.frequency.value = 900; g.gain.setValueAtTime(.12, t); g.gain.linearRampToValueAtTime(0, t + .9);
+    o.connect(f); f.connect(g); g.connect(SND.master); o.start(t); o.stop(t + 1);
+  }
+  function openBehind(open) {
+    if (!SND.ctx || !SND.behind) return;
+    const f = SND.behind.frequency, t = SND.ctx.currentTime;
+    f.cancelScheduledValues(t); f.setValueAtTime(f.value, t); f.exponentialRampToValueAtTime(open ? 9000 : 420, t + (open ? 2.2 : 3));
+  }
+
+  // ---------- opening title ----------
+  const TITLE = "city in my back";
+  const ttl = { a: 0, from: 0, to: 1, t0: performance.now() + 800, dur: 3000 };
+  function titleTo(v, dur) { ttl.from = titleAlpha(performance.now()); ttl.to = v; ttl.t0 = performance.now(); ttl.dur = dur; }
+  function titleAlpha(now) { const k = Math.min(1, Math.max(0, (now - ttl.t0) / ttl.dur)); return ttl.from + (ttl.to - ttl.from) * (reduced ? 1 : k * k * (3 - 2 * k)); }
+  // The title is seen from behind: mirrored and soft, it turns round to face you, holds, then turns away again.
+  const TURN_MS = 7000;
+  function turnAngle(now) {
+    if (reduced) return 0;
+    const p = (now % TURN_MS) / TURN_MS, ease = k => k * k * (3 - 2 * k);
+    if (p < .3) return Math.PI;                                  // facing away
+    if (p < .5) return Math.PI + Math.PI * ease((p - .3) / .2);  // turning to face you
+    if (p < .7) return 0;                                        // facing you
+    return Math.PI * ease((p - .7) / .3);                        // turning away
+  }
+  function drawTitleTurning(now, gAmt) {
+    const a = titleAlpha(now); ttl.a = a; if (a <= .01) return;
+    const font = '"Archivo Black", "Arial Black", sans-serif';
+    cx.font = `100px ${font}`;
+    const size = 100 * (W * .86) / cx.measureText(TITLE).width;
+    cx.font = `${size}px ${font}`; cx.textAlign = "center"; cx.textBaseline = "middle";
+    const th = turnAngle(now), sx = Math.cos(th), back = sx < 0;
+    const x = W / 2, y = H / 2, light = lum(BG) > .5;
+    const face = back ? .55 : 1, off = 2 + gAmt * 2 + (Math.random() < .05 ? Math.random() * 12 : 0);
+    cx.save(); cx.translate(x, y); cx.scale(Math.abs(sx) < .02 ? .02 * Math.sign(sx || 1) : sx, 1);
+    if (back) cx.filter = "blur(1.2px)";
+    cx.save(); cx.globalCompositeOperation = light ? "multiply" : "screen"; cx.globalAlpha = a * face * .8;
+    cx.fillStyle = "#ff3355"; cx.fillText(TITLE, -off, 0);
+    cx.fillStyle = "#2fe0ff"; cx.fillText(TITLE, off, Math.random() < .1 ? 2 : 0);
+    cx.restore();
+    cx.globalAlpha = a * face; cx.fillStyle = rgb(INK); cx.fillText(TITLE, 0, 0);
+    cx.restore(); cx.filter = "none";
+    // a slice of the title slips sideways now and then
+    if (!reduced && Math.random() < .05 * (1 + gAmt)) {
+      const sy = y - size * .4 + Math.random() * size * .8, sh = 3 + Math.random() * size * .15, dx = (Math.random() - .5) * 40;
+      cx.drawImage(fx, 0, sy * DPR, W * DPR, sh * DPR, dx, sy, W, sh);
+    }
+    cx.globalAlpha = 1; cx.textAlign = "start"; cx.textBaseline = "alphabetic";
+  }
+
+  // D: the title is written in footsteps. Tiny prints walk the shape of each letter and fade behind you,
+  // so the words only exist for as long as you are walking them.
+  const TITLE_MODE = "type";             // "type", "dust", "melt", "footsteps" or "turning"
+  let tpath = null, tstart = 0, tkey = "";
+  const T_WALK = 4500, T_LIFE = 5200, T_REST = 1200;
+  function buildTitlePath() {
+    const w = Math.floor(W), h = Math.floor(H), o = document.createElement("canvas"); o.width = w; o.height = h;
+    const g = o.getContext("2d"), font = '"Archivo Black", "Arial Black", sans-serif';
+    g.font = `100px ${font}`; const size = 100 * (W * .86) / g.measureText(TITLE).width;
+    g.font = `${size}px ${font}`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = "#fff"; g.fillText(TITLE, w / 2, h / 2);
+    const d = g.getImageData(0, 0, w, h).data, step = Math.max(7, Math.round(size / 13)), cols = new Map();
+    for (let x = 0; x < w; x += step) for (let y = 0; y < h; y += step) if (d[(y * w + x) * 4 + 3] > 128) { if (!cols.has(x)) cols.set(x, []); cols.get(x).push(y); }
+    const pts = []; let down = true;
+    [...cols.keys()].sort((a, b) => a - b).forEach(x => { const ys = cols.get(x); (down ? ys : ys.slice().reverse()).forEach(y => pts.push({ x, y })); down = !down; });
+    pts.forEach((p, i) => { const q = pts[Math.min(i + 1, pts.length - 1)], r = pts[Math.max(i - 1, 0)]; p.ang = Math.atan2(q.y - r.y, q.x - r.x); p.side = i % 2 ? 1 : -1; p.seed = Math.random() * 1e4; });
+    tpath = { pts, cell: Math.max(1.1, step / 6.5) }; tstart = performance.now(); tkey = `${W}x${H}`;
+  }
+  function drawTitleFootsteps(now, gAmt) {
+    const a = titleAlpha(now); ttl.a = a; if (a <= .01) return;
+    if (!tpath || tkey !== `${W}x${H}`) buildTitlePath();
+    const n = tpath.pts.length, T_STEP_MS = T_WALK / n, total = T_WALK + T_LIFE + T_REST;
+    if (now - tstart > total) tstart = now;
+    const t = now - tstart, light = lum(BG) > .5;
+    const walked = Math.min(n, Math.floor(t / T_STEP_MS));
+    for (let i = 0; i < walked; i++) {
+      const age = (t - i * T_STEP_MS) / T_LIFE; if (age >= 1) continue;
+      const p = tpath.pts[i], fa = (age < .55 ? 1 : 1 - (age - .55) / .45) * a, press = Math.min(1, (t - i * T_STEP_MS) / 120);
+      const f = { x: p.x, y: p.y, ang: p.ang, side: p.side, seed: p.seed };
+      const off = .8 + gAmt * .6;
+      cx.save(); cx.globalCompositeOperation = light ? "multiply" : "screen"; cx.globalAlpha = fa * press * .55;
+      cx.fillStyle = "#ff3355"; drawFoot({ ...f, x: f.x - off }, 1, tpath.cell);
+      cx.fillStyle = "#2fe0ff"; drawFoot({ ...f, x: f.x + off }, 1, tpath.cell);
+      cx.restore();
+      cx.globalAlpha = fa * press; cx.fillStyle = rgb(INK); drawFoot(f, 1, tpath.cell);
+    }
+    cx.globalAlpha = 1;
+    if (!reduced && Math.random() < .03 * (1 + gAmt)) {
+      const y = H / 2 - 60 + Math.random() * 120, sh = 2 + Math.random() * 8;
+      cx.drawImage(fx, 0, y * DPR, W * DPR, sh * DPR, (Math.random() - .5) * 30, y, W, sh);
+    }
+  }
+  // E: the title melts. It slips downward in thin vertical strips, like a print left in the rain
+  // or a stretched video tape, then snaps back sharp and starts again.
+  let mimg = null, mstart = 0, mkey = "", mspeed = [];
+  const M_HOLD = 1600, M_RUN = 5200, M_GAP = 500, STRIP = 3;
+  function buildMelt() {
+    const d = DPR, o = document.createElement("canvas"); o.width = W * d; o.height = H * d;
+    const g = o.getContext("2d"); g.scale(d, d);
+    const font = '"Archivo Black", "Arial Black", sans-serif';
+    g.font = `100px ${font}`; const size = 100 * (W * .86) / g.measureText(TITLE).width;
+    g.font = `${size}px ${font}`; g.textAlign = "center"; g.textBaseline = "middle";
+    const ink = rgb(INK);
+    g.globalCompositeOperation = lum(BG) > .5 ? "multiply" : "screen";
+    g.globalAlpha = .8; g.fillStyle = "#ff3355"; g.fillText(TITLE, W / 2 - 3, H / 2); g.fillStyle = "#2fe0ff"; g.fillText(TITLE, W / 2 + 3, H / 2);
+    g.globalCompositeOperation = "source-over"; g.globalAlpha = 1; g.fillStyle = ink; g.fillText(TITLE, W / 2, H / 2);
+    mimg = o; mkey = `${W}x${H}:${ink}`;
+    mspeed = Array.from({ length: Math.ceil(W / STRIP) }, (_, i) => { const r = Math.random(); return r > .85 ? 1.8 + r : .35 + r * .9 + Math.sin(i * .05) * .2; });
+  }
+  function drawTitleMelt(now, gAmt) {
+    const a = titleAlpha(now); ttl.a = a; if (a <= .01) return;
+    if (!mimg || mkey !== `${W}x${H}:${rgb(INK)}`) { buildMelt(); mstart = now; }
+    let t = now - mstart; const total = M_HOLD + M_RUN + M_GAP;
+    if (t > total) { mstart = now; t = 0; mspeed = mspeed.map((v, i) => { const r = Math.random(); return r > .85 ? 1.8 + r : .35 + r * .9 + Math.sin(i * .05) * .2; }); }
+    const run = reduced ? 0 : Math.max(0, Math.min(M_RUN, t - M_HOLD)) / 1000;
+    const fade = t > M_HOLD + M_RUN ? 0 : 1 - Math.pow(run / (M_RUN / 1000), 3);
+    const top = H / 2 - W * .1, hgt = W * .2 + H * .5;          // only the band around the title matters
+    for (let i = 0; i < mspeed.length; i++) {
+      const x = i * STRIP, dy = run * run * 9 * mspeed[i];
+      cx.globalAlpha = a * fade;
+      cx.drawImage(mimg, x * DPR, top * DPR, STRIP * DPR, hgt * DPR, x, top + dy, STRIP, hgt);
+      if (dy > 3) { cx.globalAlpha = a * fade * .22; cx.drawImage(mimg, x * DPR, top * DPR, STRIP * DPR, hgt * DPR, x, top + dy * .45, STRIP, hgt * (1 + dy / 200)); }
+    }
+    cx.globalAlpha = 1;
+    // the snap back: a short glitch as the title reappears sharp
+    if (t < 160 && !reduced) { const y = H / 2 - 40 + Math.random() * 80; cx.drawImage(fx, 0, y * DPR, W * DPR, 14 * DPR, (Math.random() - .5) * 50, y, W, 14); }
+  }
+  // F: the title is dust. It gathers into words when you first arrive, then drifts apart.
+  // Hover over it and the dust remembers; click and your footsteps scatter it.
+  let dust = null, dkey = "", dGatherUntil = 0;
+  const pokes = [];
+  function buildDust() {
+    const w = Math.floor(W), h = Math.floor(H), o = document.createElement("canvas"); o.width = w; o.height = h;
+    const g = o.getContext("2d"), font = '"Space Grotesk", "Helvetica Neue", Arial, sans-serif';
+    g.font = `700 100px ${font}`; const size = 100 * (W * .84) / g.measureText(TITLE).width;
+    g.font = `700 ${size}px ${font}`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = "#fff"; g.fillText(TITLE, w / 2, h / 2);
+    const d = g.getImageData(0, 0, w, h).data, step = Math.max(3, Math.round(size / 34)), pts = [];
+    for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step) if (d[(y * w + x) * 4 + 3] > 140) pts.push({ hx: x, hy: y, x: Math.random() * W, y: Math.random() * H, vx: 0, vy: 0, s: Math.random() });
+    dust = { pts, size, dot: Math.max(1.6, step * .62), box: { x: W * .06, y: H / 2 - size * .7, w: W * .88, h: size * 1.4 } };
+    dkey = `${W}x${H}`;
+    if (!dGatherUntil) dGatherUntil = performance.now() + 4800;            // first arrival: the words form once by themselves
+  }
+  function drawTitleDust(now, gAmt) {
+    const a = titleAlpha(now); ttl.a = a; if (a <= .01) return;
+    if (!dust || dkey !== `${W}x${H}`) buildDust();
+    const b = dust.box, light = lum(BG) > .5;
+    const looking = (mouse.on && !drag && mouse.x > b.x && mouse.x < b.x + b.w && mouse.y > b.y && mouse.y < b.y + b.h) || now < dGatherUntil;
+    for (let i = pokes.length - 1; i >= 0; i--) if (now - pokes[i].t > 60) pokes.splice(i, 1);
+    const ink = rgb(INK);
+    for (const p of dust.pts) {
+      if (looking) { p.vx += (p.hx - p.x) * .018; p.vy += (p.hy - p.y) * .018; p.vx *= .84; p.vy *= .84; }
+      else { p.vx += Math.sin(now * .0005 + p.s * 40) * .025; p.vy += Math.cos(now * .00045 + p.s * 60) * .025 + .004; p.vx *= .985; p.vy *= .985; }
+      for (const k of pokes) { const dx = p.x - k.x, dy = p.y - k.y, d2 = dx * dx + dy * dy; if (d2 < 140 * 140) { const f = (1 - Math.sqrt(d2) / 140) * 7; const d = Math.sqrt(d2) || 1; p.vx += dx / d * f; p.vy += dy / d * f; } }
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > W) p.vx *= -1; if (p.y < 0 || p.y > H) p.vy *= -1;
+      const settle = Math.max(0, 1 - Math.hypot(p.hx - p.x, p.hy - p.y) / 60);   // brighter when it has found its place
+      cx.globalAlpha = a * (.35 + .6 * settle);
+      cx.fillStyle = p.s < .05 ? "#ff3355" : p.s > .95 ? "#2fe0ff" : ink;
+      cx.fillRect(p.x, p.y, dust.dot, dust.dot);
+    }
+    cx.globalAlpha = 1;
+  }
+  // Title set like cut-out photocopied type: heavy, inky, each letter a little off its line.
+  let ttype = null;
+  function buildType() {
+    const font = '"Special Elite", "Courier New", monospace';
+    cx.font = `100px ${font}`; const size = 100 * (W * .8) / cx.measureText(TITLE).width;
+    const chars = [...TITLE].map((ch, i) => ({ ch, dy: (Math.random() - .5) * size * .08, rot: (Math.random() - .5) * .05, s: 1 + (Math.random() - .5) * .08 }));
+    ttype = { size, chars, key: `${W}x${H}` };
+  }
+  function drawTitleType(now, gAmt) {
+    const a = titleAlpha(now); ttl.a = a; if (a <= .01) return;
+    if (!ttype || ttype.key !== `${W}x${H}`) buildType();
+    if (!ttype.img) {
+      const o = document.createElement("canvas"); o.width = W * DPR; o.height = H * DPR;
+      const g = o.getContext("2d"); g.scale(DPR, DPR); g.filter = "url(#rough)";
+      const font = '"Special Elite", "Courier New", monospace', size = ttype.size;
+      g.font = `${size}px ${font}`; g.textBaseline = "middle"; g.textAlign = "center"; g.fillStyle = rgb(INK);
+      let x = W / 2 - g.measureText(TITLE).width / 2; const y = H / 2;
+      for (const c of ttype.chars) {
+        const adv = g.measureText(c.ch).width;
+        if (c.ch !== " ") { g.save(); g.translate(x + adv / 2, y + c.dy); g.rotate(c.rot); g.scale(c.s, c.s); g.fillText(c.ch, 0, 0); g.fillText(c.ch, 1, .5); g.restore(); }
+        x += adv;
+      }
+      ttype.img = o;
+    }
+    cx.globalAlpha = a; cx.drawImage(ttype.img, 0, 0, W, H); cx.globalAlpha = 1;
+    if (!reduced && Math.random() < .03 * (1 + gAmt)) {
+      const y = H / 2, sy = y - ttype.size * .4 + Math.random() * ttype.size * .8, sh = 2 + Math.random() * ttype.size * .1;
+      cx.drawImage(fx, 0, sy * DPR, W * DPR, sh * DPR, (Math.random() - .5) * 24, sy, W, sh);
+    }
+  }
+
+  function drawTitle(now, gAmt) { return TITLE_MODE === "type" ? drawTitleType(now, gAmt) : TITLE_MODE === "dust" ? drawTitleDust(now, gAmt) : TITLE_MODE === "melt" ? drawTitleMelt(now, gAmt) : TITLE_MODE === "footsteps" ? drawTitleFootsteps(now, gAmt) : drawTitleTurning(now, gAmt); }
+  (document.fonts?.ready || Promise.resolve()).then(() => { tpath = null; mimg = null; dust = null; ttype = null; glyphs.clear(); });
+
+  // ---------- the sentence: letters moved by the weather ----------
+  const fx = $("fx"), cx = fx.getContext("2d");
+  let W = 0, H = 0, DPR = 1;
+  let petals = [], flash = 0, nextFlash = 0;
+  // Many small sentences at once, each behaving like the weather itself:
+  // rain falls as drops, wind blows them, clouds carry them in slow masses and shade the city,
+  // sun sweeps light across them, fog lets them appear and dissolve. Hover one to stop it and read it.
+  let objs = [], splashes = [], floatKey = "", clouds = [], streaks = [];
+  const FS = () => Math.round(Math.max(14, Math.min(19, W / 74)));
+  const COUNTS = { Rain: [14, 24, 38], Storm: [22, 34, 50], Wind: [7, 11, 16], Cloudy: [8, 12, 16], Fog: [5, 8, 11], Clear: [6, 9, 12], Heat: [6, 9, 12], Jacaranda: [24, 40, 60] };
+  const want = () => COUNTS[weather()][{ Light: 0, Medium: 1, Heavy: 2 }[intensity()]];
+  function linePool() { let pool = LINES[weather()][intensity()].slice(); if (isNight()) pool = pool.concat(LINES.Night); return pool; }
+  function pickText() {
+    const pool = linePool(), onScreen = new Set(objs.map(o => o.text)), unused = pool.filter(t => !onScreen.has(t));
+    const wider = Object.values(LINES[weather()]).flat().filter(t => !onScreen.has(t));
+    const from = unused.length ? unused : wider.length ? wider : pool;
+    return from[Math.floor(Math.random() * from.length)];
+  }
+  function spawnObj(fresh) {
+    const w = weather(), k = K[intensity()], text = pickText();
+    const size = (w === "Rain" || w === "Storm") ? Math.round(FS() * .85) : FS();
+    cx.font = `${size}px "Special Elite", "Courier New", monospace`;
+    const adv = cx.measureText("M").width, width = adv * text.length;
+    const o = { text, size, adv, width, seed: Math.random() * 1000, born: performance.now(), paused: false, a: 0 };
+    if (w === "Rain" || w === "Storm") {                         // each sentence is a raindrop: vertical, fast, slanted
+      const st = w === "Storm", len = text.length * size * .9;
+      o.kind = "drop"; o.len = len;
+      o.vy = (st ? 12 + Math.random() * 5 : 6.5 + Math.random() * 4) * (.7 + .35 * k);
+      o.vx = -(st ? 2.6 : .7) * k;
+      o.x = Math.random() * (W + 240) - 40; o.y = fresh ? Math.random() * (H + len) : -Math.random() * H * .4;
+    } else if (w === "Jacaranda") {
+      const letters = [...text].filter(c => c !== " ");
+      Object.assign(o, { kind: "letter", ch: letters[Math.floor(Math.random() * letters.length)], x: 20 + Math.random() * (W - 40), y: fresh ? Math.random() * H : -20 - Math.random() * 60, vx: 0, vy: .35 + Math.random() * .3 });
+    } else if (w === "Wind") {                                    // carried by the wind, faster in gusts
+      Object.assign(o, { kind: "wind", x: fresh ? Math.random() * W : -width - Math.random() * 300, y: H * (.14 + Math.random() * .76), vx: (1.8 + Math.random() * 1.4) * (.7 + .5 * k), vy: 0 });
+    } else if (w === "Cloudy") {                                  // carried inside a slow cloud
+      const ci = Math.floor(Math.random() * clouds.length), c = clouds[ci];
+      const slot = objs.filter(q => q.kind === "cloud" && q.ci === ci).length;
+      Object.assign(o, { kind: "cloud", ci, ox: (Math.random() - .5) * c.rx * 1.2 - width / 2 + (slot % 2 ? c.rx * .25 : -c.rx * .25), oy: ((slot % 5) - 2) * size * 1.7 + (Math.random() - .5) * 4 });
+    } else if (w === "Fog") {                                     // appears out of the fog and dissolves again
+      Object.assign(o, { kind: "fog", x: Math.random() * Math.max(20, W - width), y: H * (.15 + Math.random() * .75), vx: -.12, vy: 0, life: 7000 + Math.random() * 5000, born: performance.now() - (fresh ? Math.random() * 6000 : 0) });
+    } else {                                                      // Clear / Heat: lifted by the sun
+      Object.assign(o, { kind: "sun", x: Math.random() * Math.max(20, W - width - 20) + 10, y: fresh ? H * (.15 + Math.random() * .8) : H + 30, vx: 0, vy: -(.25 + Math.random() * .3) * (w === "Heat" ? .6 : 1) });
+    }
+    if (reduced) { o.vx = (o.vx || 0) * .3; o.vy = (o.vy || 0) * .3; }
+    objs.push(o); return o;
+  }
+  function resetFloat() {
+    objs = []; splashes = []; streaks = [];
+    const k = K[intensity()];
+    clouds = [0, 1, 2].map(i => ({ x: Math.random() * W, y: H * (.22 + .26 * i) + (Math.random() - .5) * 40, rx: W * (.18 + Math.random() * .1), ry: H * (.07 + Math.random() * .04), vx: -(.18 + Math.random() * .16) * (.6 + .4 * k) }));
+    for (let i = 0, n = want(); i < n; i++) spawnObj(true);
+    floatKey = weather() + intensity();
+  }
+  function posOf(o, s) {
+    if (o.kind === "cloud") { const c = clouds[o.ci]; return { x: c.x + o.ox, y: c.y + o.oy + Math.sin(s * .7 + o.seed) * 4 }; }
+    return { x: o.x, y: o.y };
+  }
+  function bbox(o, s) {
+    const p = posOf(o, s);
+    if (o.kind === "drop") return { x: p.x - o.size, y: p.y - o.len, w: o.size * 2 + Math.abs(o.vx / o.vy) * o.len, h: o.len + 6 };
+    if (o.kind === "letter") return { x: p.x - 4, y: p.y - o.size, w: o.adv + 8, h: o.size + 6 };
+    return { x: p.x - 4, y: p.y - o.size, w: o.width + 8, h: o.size + 8 };
+  }
+  // shared weather state for this frame
+  let gust = 0, sunX = 0;
+  function weatherLayer(now, w, k, s) {
+    if (w === "Cloudy") {                                         // clouds drift over and shade the city underneath
+      for (const c of clouds) {
+        if (!reduced) c.x += c.vx;
+        if (c.x < -c.rx * 1.6) c.x = W + c.rx * 1.6;
+        const sx = c.x + 50, sy = c.y + H * .1;
+        const g = cx.createRadialGradient(sx, sy, 0, sx, sy, c.rx * 1.3);
+        g.addColorStop(0, "rgba(0,0,0,.5)"); g.addColorStop(1, "rgba(0,0,0,0)");
+        cx.save(); cx.translate(sx, sy); cx.scale(1, (c.ry * 2.4) / (c.rx * 1.3)); cx.translate(-sx, -sy);
+        cx.fillStyle = g; cx.beginPath(); cx.arc(sx, sy, c.rx * 1.3, 0, 7); cx.fill(); cx.restore();
+      }
+    } else if (w === "Clear" || w === "Heat") {                   // a slow band of sunlight sweeps across everything
+      const period = 14000, p = (now % period) / period;
+      sunX = -W * .4 + p * W * 1.8;
+      const g = cx.createLinearGradient(sunX - 260, 0, sunX + 260, H * .4);
+      const peak = (w === "Heat" ? .14 : .1) * k;
+      g.addColorStop(0, "rgba(255,250,235,0)"); g.addColorStop(.5, `rgba(255,248,230,${peak})`); g.addColorStop(1, "rgba(255,250,235,0)");
+      cx.save(); cx.globalCompositeOperation = "screen"; cx.fillStyle = g; cx.fillRect(0, 0, W, H); cx.restore();
+    } else if (w === "Wind") {                                    // gusts, and thin streaks of moving air
+      gust = .5 + .5 * Math.sin(s * .9) * Math.sin(s * .37 + 1.3);
+      if (!reduced && Math.random() < (.15 + gust * .5) * k) streaks.push({ x: -100, y: Math.random() * H, len: 60 + Math.random() * 180, v: 10 + Math.random() * 14 * (.5 + gust) });
+      cx.strokeStyle = rgb(INK); cx.lineWidth = 1;
+      for (let i = streaks.length - 1; i >= 0; i--) { const t = streaks[i]; t.x += t.v; if (t.x > W + 200) { streaks.splice(i, 1); continue; }
+        cx.globalAlpha = .12 + gust * .1; cx.beginPath(); cx.moveTo(t.x, t.y); cx.lineTo(t.x + t.len, t.y + Math.sin(t.x * .01) * 3); cx.stroke(); }
+      cx.globalAlpha = 1;
+    } else if (w === "Fog") {
+      cx.fillStyle = "rgba(220,220,215,.05)"; cx.fillRect(0, 0, W, H);
+    }
+  }
+  function drawFloat(now, gAmt) {
+    const w = weather(), k = K[intensity()], s = now / 1000;
+    if (floatKey !== w + intensity()) resetFloat();
+    if (ttl.a > .05) return;                                      // the title comes first
+    weatherLayer(now, w, k, s);
+    while (objs.length < want()) spawnObj(false);
+    const hovering = mouse.on && !drag;
+    for (let n = objs.length - 1; n >= 0; n--) {
+      const o = objs[n], b = bbox(o, s);
+      o.paused = hovering && mouse.x >= b.x && mouse.x <= b.x + b.w && mouse.y >= b.y && mouse.y <= b.y + b.h;
+      if (!o.paused) {
+        if (o.kind === "wind") o.x += o.vx * (.5 + gust * 1.4 * k);
+        else if (o.kind !== "cloud") { o.x += o.vx || 0; o.y += o.vy || 0; }
+        if (o.kind === "letter") o.x += Math.sin(s * 1.3 + o.seed) * .45;
+      }
+      o.a = Math.min(1, o.a + .03);
+      const p = posOf(o, s);
+      // a raindrop hits the ground and splashes into letters
+      if (o.kind === "drop" && o.y > H - 6) {
+        [...o.text].slice(-6).forEach(ch => { if (ch !== " ") splashes.push({ ch, x: o.x + (Math.random() - .5) * 10, y: H - 8, vx: (Math.random() - .5) * 3 - o.vx * .2, vy: -(1.5 + Math.random() * 2.5) * (w === "Storm" ? 1.4 : 1), t: now, size: o.size }); });
+        objs.splice(n, 1); continue;
+      }
+      let gone = false;
+      if (o.kind === "fog") { if (now - o.born > o.life) gone = true; }
+      else if (o.kind !== "cloud") gone = o.y < -o.size * 3 - (o.len || 0) || o.y > H + 60 + (o.kind === "drop" ? o.len : 0) || o.x > W + 80 || o.x < -o.width - 400;
+      const fade = o.kind === "letter" ? Math.max(0, Math.min(1, (H * .95 - o.y) / (H * .15))) : 1;
+      if (gone || fade <= 0) { objs.splice(n, 1); continue; }
+      cx.font = `${o.size}px "Special Elite", "Courier New", monospace`;
+      if (o.paused) {                                             // stopped and readable
+        const bx = Math.max(6, Math.min(W - cx.measureText(o.text).width - 10, o.kind === "drop" ? p.x : p.x)), by = o.kind === "drop" ? Math.min(H - 10, Math.max(o.size + 4, p.y)) : p.y;
+        cx.globalAlpha = .92; cx.fillStyle = "#000"; cx.fillRect(bx - 6, by - o.size, cx.measureText(o.text).width + 12, o.size + 8);
+        cx.globalAlpha = 1; drawLetterRun(o.text, bx, by, o.size); continue;
+      }
+      const chars = [...o.text], N = chars.length;
+      if (o.kind === "letter") { drawLetter(o.ch, { x: p.x, y: p.y, a: o.a * fade, rot: Math.sin(s * 2 + o.seed) * .5 }, o.size, gAmt); continue; }
+      if (o.kind === "drop") {
+        const v = Math.hypot(o.vx, o.vy), dx = o.vx / v, dy = o.vy / v, step = o.size * .9, rot = Math.atan2(dy, dx) - Math.PI / 2;
+        chars.forEach((ch, i) => { if (ch === " ") return;
+          const back = (N - 1 - i) * step;                        // the last letter leads, the rest trail behind it
+          drawLetter(ch, { x: p.x - dx * back, y: p.y - dy * back, a: o.a * (.2 + .8 * (i / N)), rot: rot * .6 }, o.size, gAmt);
+        });
+        continue;
+      }
+      chars.forEach((ch, i) => {
+        if (ch === " ") return;
+        let dxl = 0, dyl = 0, rot = 0, blur = 0, a = o.a * .9;
+        if (o.kind === "wind") { const ph = (p.x + i * o.adv) * .012 + s * 1.8 + o.seed; dxl = i * o.adv * gust * .4 * k; dyl = Math.sin(ph) * (5 + 16 * k * gust); rot = Math.cos(ph) * .35 * gust; }
+        else if (o.kind === "cloud") { dyl = Math.sin(s * .9 + i * .35 + o.seed) * 2.5; a = o.a * .7; }
+        else if (o.kind === "fog") { const age = (now - o.born) / o.life, env = Math.sin(Math.PI * Math.min(1, Math.max(0, age))); a = env * .75; blur = 1 + (1 - env) * 5 + Math.sin(s + i * .3) * .6; dyl = Math.sin(s * .8 + i * .4 + o.seed) * 1.5; }
+        else if (o.kind === "sun") {
+          const lit = Math.max(0, 1 - Math.abs(p.x + i * o.adv - sunX) / 220);   // brighter as the sunlight passes over
+          a = o.a * (.55 + .45 * lit); dyl = Math.sin(s * 1.2 + i * .5 + o.seed) * 3;
+          if (w === "Heat") { dxl = Math.sin(s * 9 + i * 1.7 + o.seed) * 1.4 * k; dyl += Math.sin(s * 6 + i * .9 + o.seed) * 2.6 * k; }
+        }
+        drawLetter(ch, { x: p.x + i * o.adv + dxl, y: p.y + dyl, a, rot, blur }, o.size, gAmt);
+      });
+    }
+    for (let i = splashes.length - 1; i >= 0; i--) {
+      const q = splashes[i], age = (now - q.t) / 520;
+      if (age >= 1) { splashes.splice(i, 1); continue; }
+      q.x += q.vx; q.y += q.vy; q.vy += .16;
+      drawLetter(q.ch, { x: q.x, y: q.y, a: 1 - age }, q.size, gAmt);
+    }
+  }
+  function drawLetterRun(text, x, y, size) { cx.font = `${size}px "Special Elite", "Courier New", monospace`; const adv = cx.measureText("M").width; [...text].forEach((ch, i) => { if (ch !== " ") stamp(glyph(ch, size, rgb(INK)), x + i * adv, y); }); }
+
+  // Letters are pre-printed once each, roughened like a photocopy, then stamped many times. (Fast.)
+  const glyphs = new Map();
+  function glyph(ch, size, color) {
+    const key = ch + "|" + size + "|" + color + "|" + DPR;
+    let g = glyphs.get(key); if (g) return g;
+    const pad = Math.ceil(size * .35), w = Math.ceil(size * 1.1) + pad * 2, h = Math.ceil(size * 1.5) + pad * 2;
+    const c = document.createElement("canvas"); c.width = w * DPR; c.height = h * DPR;
+    const x = c.getContext("2d"); x.scale(DPR, DPR); x.filter = "url(#rough)";
+    x.font = `${size}px "Special Elite", "Courier New", monospace`; x.textBaseline = "alphabetic"; x.fillStyle = color;
+    const base = pad + size * 1.05;
+    x.fillText(ch, pad, base); x.fillText(ch, pad + .6, base + .3);   // heavy ink
+    g = { c, w, h, ox: pad, oy: base }; glyphs.set(key, g);
+    if (glyphs.size > 1500) glyphs.clear();
+    return g;
+  }
+  function stamp(g, dx, dy) { cx.drawImage(g.c, dx - g.ox, dy - g.oy, g.w, g.h); }
+  function drawLetter(ch, p, size, gAmt) {
+    if (p.a <= .01) return;
+    cx.save(); cx.translate(p.x, p.y); if (p.rot) cx.rotate(p.rot);
+    if (p.blur) cx.filter = `blur(${p.blur.toFixed(1)}px)`;
+    let c = ch; if (Math.random() < .012 * gAmt && ch !== " ") c = SCR[Math.floor(Math.random() * SCR.length)];
+    const off = .8 + gAmt * .8 + (Math.random() < .02 * gAmt ? Math.random() * 6 : 0);
+    cx.globalAlpha = p.a * .35; cx.globalCompositeOperation = "screen";
+    stamp(glyph(c, size, "#ff3355"), -off, 0);
+    stamp(glyph(c, size, "#2fe0ff"), off, 0);
+    cx.globalCompositeOperation = "source-over"; cx.globalAlpha = p.a;
+    const ink = glyph(c, size, weather() === "Jacaranda" ? "#cdb8f7" : rgb(INK));
+    if (Math.random() < .03 * gAmt) { // horizontal tear
+      const cut = -size * (.2 + Math.random() * .5);
+      cx.save(); cx.beginPath(); cx.rect(-size, -size * 1.4, size * 3, size * 1.4 + cut); cx.clip(); stamp(ink, (Math.random() - .5) * 8 * gAmt, 0); cx.restore();
+      cx.save(); cx.beginPath(); cx.rect(-size, cut, size * 3, size); cx.clip(); stamp(ink, 0, 0); cx.restore();
+    } else stamp(ink, 0, 0);
+    cx.restore();
+  }
+
+
+  // film grain
+  const grains = [0, 1, 2, 3].map(() => {
+    const c = document.createElement("canvas"); c.width = c.height = 160;
+    const g = c.getContext("2d"), d = g.createImageData(160, 160);
+    for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() < .5 ? 0 : 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = Math.random() * 80; }
+    g.putImageData(d, 0, 0); return cx.createPattern(c, "repeat");
+  });
+  const GRAIN = { Clear: .08, Cloudy: .13, Rain: .12, Storm: .16, Wind: .1, Heat: .1, Fog: .2, Jacaranda: .08 };
+  const GLITCH = { Clear: .5, Cloudy: .6, Rain: .9, Storm: 2, Wind: 1, Heat: 1.6, Fog: .5, Jacaranda: .5 };
+
+  function resize() {
+    DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+    fx.width = W * DPR; fx.height = H * DPR; cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    resetFloat();
+    entries.forEach(positionEntry);
+  }
+  addEventListener("resize", resize);
+
+  let gi = 0, lastSlow = 0, lastMove = 0;
+  function frame(now) {
+    if (now - lastSlow > 1000) { applyTheme(); tick(); lastSlow = now; }
+    const w = weather();
+    updateEntries(now);
+
+    cx.clearRect(0, 0, W, H);
+    if (w === "Storm" && !reduced) {
+      if (now > nextFlash) { flash = 1; nextFlash = now + (4000 + Math.random() * 6000) / K[intensity()]; }
+      if (flash > .01) { cx.fillStyle = "#fff"; cx.globalAlpha = flash * .35; cx.fillRect(0, 0, W, H); cx.globalAlpha = 1; flash *= .88; }
+    }
+    if (w === "Jacaranda") {
+      if (petals.length < 70 * K[intensity()]) petals.push({ x: Math.random() * W, y: -10, vy: .4 + Math.random() * .8, sw: Math.random() * 6.28, r: 2 + Math.random() * 3, rot: Math.random() * 6.28 });
+      cx.fillStyle = "#9b7fd1";
+      petals = petals.filter(p => { p.y += p.vy; p.sw += .02; p.x += Math.sin(p.sw) * .5; p.rot += .02; if (p.y > H + 10) return false;
+        cx.save(); cx.translate(p.x, p.y); cx.rotate(p.rot); cx.globalAlpha = .75; cx.beginPath(); cx.ellipse(0, 0, p.r, p.r * .55, 0, 0, 7); cx.fill(); cx.restore(); return true; });
+      cx.globalAlpha = 1;
+    } else petals = [];
+
+    drawFloat(now, GLITCH[w]);
+
+    drawTitle(now, GLITCH[w]);
+    drawTrail(now, GLITCH[w]);
+    // tearing + grain
+    if (!reduced && Math.random() < .01 * GLITCH[w]) { const y = Math.random() * H, h = 3 + Math.random() * 20; cx.drawImage(fx, 0, y * DPR, W * DPR, h * DPR, (Math.random() - .5) * 30, y, W, h); }
+    gi = (gi + 1) % 4; cx.globalAlpha = GRAIN[w] * (lum(BG) > .5 ? 1.3 : 1); cx.fillStyle = grains[gi];
+    cx.save(); cx.translate(Math.random() * 160, Math.random() * 160); cx.fillRect(-160, -160, W + 320, H + 320); cx.restore(); cx.globalAlpha = 1;
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- drawing frames ----------
+  const hit = $("hit"), fr = $("frame");
+  let drag = null, down = null;
+  const rectOf = d => ({ x: Math.min(d.x0, d.x1), y: Math.min(d.y0, d.y1), w: Math.abs(d.x1 - d.x0), h: Math.abs(d.y1 - d.y0) });
+  hit.addEventListener("pointerleave", () => { mouse.on = false; });
+  hit.addEventListener("pointermove", e => {
+    const now = performance.now();
+    mouse = { x: e.clientX, y: e.clientY, on: true };
+    if (!drag && now - lastMove > 12) { pushTrail(e.clientX, e.clientY, now); lastMove = now; }
+    if (!drag) return;
+    drag.x1 = e.clientX; drag.y1 = e.clientY;
+    if (ttl.to > 0 && Math.hypot(drag.x1 - drag.x0, drag.y1 - drag.y0) > 12) titleTo(0, 500);
+    const r = rectOf(drag);
+    Object.assign(fr.style, { left: r.x + "px", top: r.y + "px", width: r.w + "px", height: r.h + "px" });
+    fr.hidden = r.w < 4 && r.h < 4;
+    const pct = Math.min(100, Math.round(r.w * r.h / (W * H) * 100));
+    $("frameLab").textContent = pct >= 85 ? "release to turn around" : `${pct}% of the city behind you`;
+    if (r.y + r.h > H - 40) { $("frameLab").style.top = "auto"; $("frameLab").style.bottom = "100%"; } else { $("frameLab").style.top = ""; $("frameLab").style.bottom = ""; }
+  });
+  hit.addEventListener("pointerdown", e => {
+    hit.setPointerCapture(e.pointerId);
+    down = { x: e.clientX, y: e.clientY }; mouse = { x: e.clientX, y: e.clientY, on: true };
+    if (SND.on) startAudio();
+    walkAway(e.clientX, e.clientY);
+    if (S.done) return;
+    drag = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
+  });
+  hit.addEventListener("pointerup", () => {
+    fr.hidden = true;
+    if (!drag) return;
+    const r = rectOf(drag); drag = null;
+    if (r.w < 24 || r.h < 24) return;
+    placePhoto(r);
+    if (r.w * r.h / (W * H) >= .85) { S.done = true; openBehind(true); setTimeout(() => { $("unlock").hidden = false; }, 1800); }
+  });
+  hit.addEventListener("pointercancel", () => { drag = null; fr.hidden = true; });
+  $("againBtn").addEventListener("click", () => {
+    S.done = false; $("unlock").hidden = true;
+    entries.splice(0).forEach(e => { e.el.style.transition = "opacity 1.4s"; e.el.style.opacity = 0; setTimeout(() => e.el.remove(), 1500); });
+    save();
+    titleTo(1, 2000); openBehind(false);
+  });
+
+  // ---------- every photograph, one by one ----------
+  let lb = 0;
+  function openLightbox(i) {
+    lb = (i + ORDER.length) % ORDER.length;
+    $("lbImg").src = `${ORDER[lb]}.jpg`; $("lbIdx").textContent = `${lb + 1} / ${ORDER.length}`;
+    $("lightbox").hidden = false; new Image().src = `${ORDER[(lb + 1) % ORDER.length]}.jpg`;
+  }
+  $("openAll").addEventListener("click", () => openLightbox(0));
+  $("lbPrev").addEventListener("click", () => openLightbox(lb - 1));
+  $("lbNext").addEventListener("click", () => openLightbox(lb + 1));
+  $("lbClose").addEventListener("click", () => { $("lightbox").hidden = true; });
+  addEventListener("keydown", e => {
+    if (!$("lightbox").hidden) { if (e.key === "ArrowRight") openLightbox(lb + 1); if (e.key === "ArrowLeft") openLightbox(lb - 1); if (e.key === "Escape") $("lightbox").hidden = true; return; }
+    if (e.key === "Escape") $("about").hidden = true;
+  });
+
+  // ---------- bar + controls ----------
+  function tick() {
+    const n = sydneyNow(); setG($("tz"), n.tz);
+    if (S.liveTime) setG($("clock"), [n.h, n.m, n.s].map(v => String(v).padStart(2, "0")).join(":"));
+    else { const h = Math.floor(S.hour), m = Math.floor((S.hour - h) * 60); setG($("clock"), `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`); }
+  }
+  const tempText = c => S.unitF ? `${Math.round(c * 9 / 5 + 32)}°F` : `${Math.round(c)}°C`;
+  function syncUI() {
+    setG($("tempTxt"), tempText(temp()));
+    const live = S.choice === "Live";
+    setG($("wxTxt"), live ? LIVE.label : (intensity() === "Medium" ? "" : intensity() + " ") + S.choice);
+    applyTheme();
+  }
+  $("wxBtn").addEventListener("click", () => { S.choice = WEATHERS[(WEATHERS.indexOf(S.choice) + 1) % WEATHERS.length]; resetFloat(); syncUI(); });
+  $("tempBtn").addEventListener("click", () => { S.unitF = !S.unitF; syncUI(); });
+  $("soundBtn").addEventListener("click", () => setSound(!SND.on));
+  setG($("soundTxt"), SND.on ? "Sound on" : "Sound off");
+  $("helpBtn").addEventListener("click", () => { $("about").hidden = false; $("closeAbout").focus(); });
+  $("closeAbout").addEventListener("click", () => { $("about").hidden = true; $("helpBtn").focus(); });
+
+  // ---------- daily weather from the shared store ----------
+  const VALID = ["clear", "cloudy", "rain", "storm", "wind", "heat", "fog"];
+  function applyLive(d) {
+    if (!d || !VALID.includes(String(d.code).toLowerCase())) return;
+    LIVE = { ...LIVE, ...d, code: String(d.code).toLowerCase() };
+    syncUI();
+  }
+  (async () => {
+    try { const db = await window.claude?.use?.("db"); if (!db) return;
+      db.doc("weather/sydney").onSnapshot(s => { if (s.exists) applyLive(s.data()); }, () => {}); } catch (e) { /* keep the snapshot */ }
+  })();
+
+  // ---------- live Sydney weather straight from Open-Meteo (standalone site) ----------
+  async function fetchWeather() {
+    try {
+      const u = "https://api.open-meteo.com/v1/forecast?latitude=-33.8688&longitude=151.2093"
+        + "&current=temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m"
+        + "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Australia%2FSydney&forecast_days=1";
+      const r = await fetch(u); if (!r.ok) return;
+      const j = await r.json(), c = j.current, d = j.daily;
+      const wc = c.weather_code, tMax = Math.round(d.temperature_2m_max[0]), tMin = Math.round(d.temperature_2m_min[0]);
+      const wind = Math.round(c.wind_speed_10m), gust = Math.round(c.wind_gusts_10m || 0), rain = d.precipitation_probability_max[0] ?? 0;
+      let code = "clear", label = "Clear";
+      if (wc >= 95) { code = "storm"; label = "Thunderstorm"; }
+      else if ((wc >= 51 && wc <= 67) || (wc >= 80 && wc <= 82)) { code = "rain"; label = wc <= 57 ? "Drizzle" : wc >= 80 ? "Showers" : "Rain"; }
+      else if (wc === 45 || wc === 48) { code = "fog"; label = "Fog"; }
+      else if (wind >= 35 || gust >= 55) { code = "wind"; label = "Windy"; }
+      else if (tMax >= 31) { code = "heat"; label = "Hot"; }
+      else if (wc === 3) { code = "cloudy"; label = "Overcast"; }
+      else if (wc === 2 || (wc >= 71 && wc <= 86)) { code = "cloudy"; label = "Partly cloudy"; }
+      else if (wc === 1) { code = "clear"; label = "Mostly clear"; }
+      const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+      applyLive({ date: d.time[0], code, label, tempNow: Math.round(c.temperature_2m), tMax, tMin, windKmh: wind,
+        windDir: dirs[Math.round((c.wind_direction_10m || 0) / 45) % 8], rainChance: rain, updated: new Date().toISOString(), source: "Open-Meteo" });
+    } catch (e) { /* keep the last known weather */ }
+  }
+  fetchWeather(); setInterval(fetchWeather, 30 * 60 * 1000);
+
+  // ---------- start ----------
+  resize(); syncUI(); tick();
+  if (saved && Array.isArray(saved.frames) && saved.frames.length) {
+    saved.frames.filter(f => IDS.includes(f.id)).forEach(f => addEntry(f.id, +f.fx || 0, +f.fy || 0, +f.fw || .1, +f.fh || .1, +f.born || Date.now(), false));
+    $("seenCount").textContent = seen.size;
+  }
+  (document.fonts?.ready || Promise.resolve()).then(() => { resetFloat(); });
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
